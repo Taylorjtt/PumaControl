@@ -62,7 +62,14 @@ public class PumaController
 						}
 						while(!beginning.equals("2323BF"));
 						
-						System.out.println(nextLine);
+						String actualThrottle = nextLine.substring(10,14);
+						//System.out.println(actualThrottle);
+						String temperature = nextLine.substring(14,18);
+						//System.out.println(temperature);
+						temperature = "0x"+temperature;
+						int numericTemperature = Integer.decode(temperature);
+						double decimalTemperature = (double)numericTemperature/100;
+						System.out.print("Motor Temperature: "+ decimalTemperature);
 					} catch (YAPI_Exception e)
 					{
 						// TODO Auto-generated catch block
