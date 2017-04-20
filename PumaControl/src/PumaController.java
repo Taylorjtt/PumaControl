@@ -9,13 +9,29 @@ import com.yoctopuce.YoctoAPI.YSerialPort;
 
 public class PumaController 
 {
+	YSerialPort pumaComms;
+	
 	private String URL = "127.0.0.1";
 	private String header = "2323";
 	private String throttleCommand = "BC0C8157FB00";
+	
+	/*
+	 * Motor Board 
+	 */
 	private boolean motorPowerEnabled = true;
 	private double commandedThrottle = 0;
-	YSerialPort pumaComms;
+	private double actualThrottle = 0.0;
+	private double motorBoardTemperature = 0.0;
 	
+	/*
+	 * Battery 
+	 */
+	private double batteryVoltage = 0.0;
+	private double batteryTemperature = 0.0;
+	private double batteryCapacity = 0.0;
+	private double batteryCapacityRemaining = 0.0;
+	private double batteryCurrent = 0.0;
+	private double batteryPCBATemp = 0.0;
 
 	
 	public PumaController()
@@ -41,7 +57,64 @@ public class PumaController
 		{
 			System.out.println("Connected!");
 			System.out.println(pumaComms.toString());
-			TimerTask readData = new TimerTask()
+			TimerTask readBatteryData = new TimerTask()
+			{
+				
+				@Override
+				public void run()
+				{
+					try
+					{
+						String nextLine;
+						String beginning = "";
+						do
+						{
+							nextLine = pumaComms.readLine();
+							
+							if(nextLine.length() == 40)
+							{
+								beginning = nextLine.substring(0, 8);
+								
+								
+							}
+							
+						}
+						while(!beginning.equals("2323BB14"));
+
+						short numericBatteryTemp = (short) Integer.parseInt(nextLine.substring(12,16),16);
+						batteryTemperature = (double)numericBatteryTemp/100;
+						
+						int batteryVoltsmV = hexStringToInt(nextLine.substring(16,20));
+						batteryVoltage = (double)batteryVoltsmV/1000;
+						
+						
+						short batteryCurrentmA = (short) Integer.parseInt(nextLine.substring(20,24),16);
+						batteryCurrent = (double)batteryCurrentmA/100;
+						
+						
+						int batteryCapacityRemainingInt = hexStringToInt(nextLine.substring(28,32));
+						batteryCapacityRemaining = (double) batteryCapacityRemainingInt/1000;
+						
+						
+						int batteryCapacityInt = hexStringToInt(nextLine.substring(24,28));
+						batteryCapacity = (double) batteryCapacityInt/1000;
+						
+						
+						int  pcbaTempInt = (short) Integer.parseInt(nextLine.substring(32,36),16);
+						batteryPCBATemp = (double) pcbaTempInt/100;
+
+						
+						
+						
+					} catch (YAPI_Exception e)
+					{
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+				}
+			};
+			TimerTask readMotorData = new TimerTask()
 			{
 				
 				@Override
@@ -62,14 +135,17 @@ public class PumaController
 						}
 						while(!beginning.equals("2323BF"));
 						
-						String actualThrottle = nextLine.substring(10,14);
-						//System.out.println(actualThrottle);
-						String temperature = nextLine.substring(14,18);
-						//System.out.println(temperature);
-						temperature = "0x"+temperature;
-						int numericTemperature = Integer.decode(temperature);
-						double decimalTemperature = (double)numericTemperature/100;
-						System.out.print("Motor Temperature: "+ decimalTemperature);
+						String actualThrottleString = nextLine.substring(10,14);
+						int numericActualThrottle = hexStringToInt(actualThrottleString);
+						actualThrottle = ((double)numericActualThrottle - 1250)/5.074;
+						actualThrottle = Math.round(actualThrottle);
+						String motorTemperatureString = nextLine.substring(14,18);
+						motorTemperatureString = "0x"+motorTemperatureString;
+						int numericTemperature = Integer.decode(motorTemperatureString);
+						motorBoardTemperature = (double)numericTemperature/100;
+
+						
+						
 					} catch (YAPI_Exception e)
 					{
 						// TODO Auto-generated catch block
@@ -143,7 +219,8 @@ public class PumaController
 			};
 			new Timer().scheduleAtFixedRate(batteryCommand, 0, 500);
 			new Timer().scheduleAtFixedRate(motorCommand, 2000, 100);
-			new Timer().scheduleAtFixedRate(readData, 2000, 100);
+			new Timer().scheduleAtFixedRate(readMotorData, 2000, 100);
+			new Timer().scheduleAtFixedRate(readBatteryData, 2000, 100);
 		}
 
 	}
@@ -152,6 +229,44 @@ public class PumaController
 		commandedThrottle = newPercent;
 	}
 	
+	private int hexStringToInt(String hexString)
+	{
+		hexString = "0x"+hexString;
+		return  Integer.decode(hexString);
+	}
+	
+	public double getActualThrottle()
+	{
+		return actualThrottle;
+	}
+	public double getMotorTemperature()
+	{
+		return motorBoardTemperature;
+	}
+	public double getBatteryTemp()
+	{
+		return batteryTemperature;
+	}
+	public double getBatteryVoltage()
+	{
+		return batteryVoltage;
+	}
+	public double getBatteryCurrent()
+	{
+		return batteryCurrent;
+	}
+	public double getBatteryCapacity()
+	{
+		return batteryCapacity;
+	}
+	public double getBatteryCapacityRemaining()
+	{
+		return batteryCapacityRemaining;
+	}
+	public double getBatteryPCBATemp()
+	{
+		return batteryPCBATemp;
+	}
 	void enableMotorPower(boolean isOn)
 	{
 		if(isOn)

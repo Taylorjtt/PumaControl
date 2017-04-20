@@ -7,6 +7,7 @@ public class PumaControl {
 		PumaController pumaController = new PumaController();
 		PumaInterface pumaInterface = new PumaInterface(pumaController);
 		
+
 		while(true)
 		{
 			pumaInterface.doControl();
